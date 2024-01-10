@@ -1,0 +1,5 @@
+_BASE_: uni_3d_R50.yaml
+MODEL:
+  UNI_3D:
+    FRUSTUM3D:
+      USE_MULTI_SCALE: True

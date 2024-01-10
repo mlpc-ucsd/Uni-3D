@@ -1,0 +1,11 @@
+cython
+timm
+scipy
+opencv-python-headless
+pycocotools
+git+https://github.com/facebookresearch/detectron2.git
+plyfile
+git+https://github.com/xheon/PyMarchingCubes.git
+# git+https://github.com/NVIDIA/MinkowskiEngine.git
+git+https://github.com/jamesbowman/openexrpython.git
+git+https://github.com/tvogels/pyexr.git
