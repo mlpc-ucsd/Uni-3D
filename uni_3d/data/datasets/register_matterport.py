@@ -21,11 +21,11 @@ MATTERPORT_CATEGORIES = [
 
 _RAW_MATTERPORT_SPLITS = {
     "matterport_train": (
-        "matterport/data",
+        "matterport",
         "matterport/meta/train_3d.json",
     ),
     "matterport_val": (
-        "matterport/data",
+        "matterport",
         "matterport/meta/val_3d.json",
     ),
 }
@@ -33,12 +33,14 @@ _RAW_MATTERPORT_SPLITS = {
 logger = logging.getLogger(__name__)
 
 
-def load_matterport(image_dir: str, gt_json: str, enable_3d: bool):
+def load_matterport(base_dir: str, gt_json: str, enable_3d: bool):
     assert os.path.exists(gt_json), gt_json+" not exists"
     with open(gt_json) as f:
         file_dicts = json.load(f)
 
     ret = []
+    
+    image_dir = os.path.join(base_dir, "data")
 
     for file_dict in file_dicts:
         scene_id, image_id = file_dict["scene_id"], file_dict["image_id"]
@@ -46,8 +48,9 @@ def load_matterport(image_dir: str, gt_json: str, enable_3d: bool):
         item = {
             "image_id": scene_id + "_" + image_id,
             "file_name": os.path.join(image_dir, scene_id, f"{name}_i{angle}_{rot}.jpg"),
-            "depth_label_file_name": os.path.join(image_dir, scene_id, f"{name}_d{angle}_{rot}.png"),
+            "depth_label_file_name": os.path.join(base_dir, "depth_gen", scene_id, f"{name}_d{angle}_{rot}.png"),
             "intrinsic_label_file_name": os.path.join(image_dir, scene_id, f"{name}_intrinsics_{angle}.npy"),
+            "room_mask_file_name": os.path.join(base_dir, "room_mask", scene_id, f"{name}_rm{angle}_{rot}.png"), 
             "segm_label_file_name": os.path.join(image_dir, scene_id, f"{name}_segmap{angle}_{rot}.mapped.npz"),
             "height": file_dict["height"],
             "width": file_dict["width"],
@@ -91,17 +94,17 @@ def register_all_matterport(root):
     meta["thing_dataset_id_to_contiguous_id"] = thing_dataset_id_to_contiguous_id
     meta["stuff_dataset_id_to_contiguous_id"] = stuff_dataset_id_to_contiguous_id
 
-    for key, (image_dir, gt_json) in _RAW_MATTERPORT_SPLITS.items():
-        image_dir = os.path.join(root, image_dir)
+    for key, (base_dir, gt_json) in _RAW_MATTERPORT_SPLITS.items():
+        base_dir = os.path.join(root, base_dir)
         gt_json = os.path.join(root, gt_json)
 
         for flavor in ("_2d", ""):
             enable_3d = "2d" not in flavor
             DatasetCatalog.register(
-                key + flavor, lambda x=image_dir, y=gt_json, z=enable_3d: load_matterport(x, y, z)
+                key + flavor, lambda x=base_dir, y=gt_json, z=enable_3d: load_matterport(x, y, z)
             )
             MetadataCatalog.get(key + flavor).set(
-                image_root=image_dir,
+                image_root=base_dir,
                 gt_dir=gt_json,
                 evaluator_type="matterport_dps" if not enable_3d else "front3d",
                 ignore_label=255,

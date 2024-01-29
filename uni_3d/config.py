@@ -115,6 +115,7 @@ def add_mask2former_config(cfg):
     # Importance sampling parameter for PointRend point sampling during training. Parametr `beta` in
     # the original paper.
     cfg.MODEL.MASK_FORMER.IMPORTANCE_SAMPLE_RATIO = 0.75
+    cfg.MODEL.MASK_FORMER.MIN_INSTANCE_PIXELS = 200
 
 
 def add_uni_3d_config(cfg):

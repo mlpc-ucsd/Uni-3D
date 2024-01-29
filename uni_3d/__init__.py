@@ -18,5 +18,5 @@ from .maskformer_model import MaskFormer
 from .uni_3d_model import Uni3D
 
 # evaluation
-from .evaluation.dvps_evaluation import CityscapesDPSEvaluator, Front3DDPSEvaluator, MatterportDPSEvaluator
+from .evaluation.dvps_evaluation import Front3DDPSEvaluator, MatterportDPSEvaluator
 from .evaluation.front3d_evaluation import Front3DEvaluator

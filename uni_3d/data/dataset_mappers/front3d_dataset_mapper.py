@@ -21,7 +21,6 @@ This file contains the default mapping that's applied to "dataset dicts".
 
 __all__ = ["Front3DDPSDatasetMapper", "Front3DDatasetMapper"]
 
-MIN_INSTANCE_PIXELS = 200
 
 STUFF_CLASSES = [10, 11, 12]
 
@@ -29,6 +28,9 @@ STUFF_CLASSES = [10, 11, 12]
 class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
     def __call__(self, dataset_dict):
         assert self.is_train, "Front3DDPSDatasetMapper should only be used for training!"
+
+        depth_min = self.config.MODEL.UNI_3D.PROJECTION.DEPTH_MIN
+        depth_max = self.config.MODEL.UNI_3D.PROJECTION.DEPTH_MAX
 
         dataset_dict = copy.deepcopy(dataset_dict)
         image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
@@ -39,9 +41,6 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
         if "segm_label_file_name" in dataset_dict:
             pan_seg_gt = np.load(dataset_dict.pop("segm_label_file_name"))["data"]
             sem_seg_gt, inst_seg_gt = pan_seg_gt[..., 0], pan_seg_gt[..., 1]
-            if is_matterport:
-                room_mask = pan_seg_gt[..., 2]
-                room_mask = room_mask.astype("double")
             del pan_seg_gt
             sem_seg_gt[sem_seg_gt == 0] = self.ignore_label
             sem_seg_gt = sem_seg_gt.astype("double")
@@ -49,9 +48,17 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
         else:
             sem_seg_gt, inst_seg_gt = None, None
 
+        if "room_mask_file_name" in dataset_dict:
+            room_mask = utils.read_image(dataset_dict.pop("room_mask_file_name"))
+            room_mask = room_mask.astype("double")
+        else:
+            room_mask = None
+
         if "depth_label_file_name" in dataset_dict:
             if is_matterport:
                 depth_gt = utils.read_image(dataset_dict.pop("depth_label_file_name")).astype("double") / 4000
+                depth_gt[depth_gt < depth_min] = 0
+                depth_gt[depth_gt > depth_max] = 0
             else:
                 depth_gt = pyexr.read(dataset_dict.pop("depth_label_file_name")).squeeze().copy().astype("double")
         else:
@@ -66,7 +73,8 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
         image, sem_seg_gt = aug_input.image, aug_input.sem_seg
 
         inst_seg_gt = transforms.apply_segmentation(inst_seg_gt)
-        if is_matterport:
+        
+        if room_mask is not None:
             room_mask = transforms.apply_segmentation(room_mask)
             room_mask = torch.as_tensor(room_mask.astype("long"))
 
@@ -102,7 +110,7 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
             image = F.pad(image, padding_size, value=128).contiguous()
             inst_seg_gt = F.pad(inst_seg_gt, padding_size, value=-1).contiguous()
             sem_seg_gt = F.pad(sem_seg_gt, padding_size, value=self.ignore_label).contiguous()
-            if is_matterport:
+            if room_mask is not None:
                 room_mask = F.pad(room_mask, padding_size, value=0).contiguous()
             if depth_gt is not None:
                 depth_gt = F.pad(depth_gt, padding_size, value=0).contiguous()
@@ -115,8 +123,8 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
         dataset_dict["image"] = image
         dataset_dict["sem_seg"] = sem_seg_gt.long()
 
-        if is_matterport:
-            dataset_dict["room_mask"] = (room_mask > 0) & (room_mask < 2**32 - 1)
+        if room_mask is not None:
+            dataset_dict["room_mask"] = room_mask > 0
         
         if depth_gt is not None:
             depth_gt = depth_gt.float()
@@ -153,7 +161,7 @@ class Front3DDPSDatasetMapper(CityscapesDPSDatasetMapper):
 
             seg_mask = inst_seg_gt == index
 
-            if seg_mask.sum() <= MIN_INSTANCE_PIXELS:
+            if seg_mask.sum() <= self.min_instance_pixels:
                 continue
 
             # Determine semantic label of the current instance by voting
@@ -401,7 +409,7 @@ class Front3DTestDatasetMapper(Front3DDatasetMapper):
         iso_value = self.config.MODEL.UNI_3D.FRUSTUM3D.ISO_VALUE
 
         if self.is_matterport:
-            room_mask = np.load(dataset_dict.pop("segm_label_file_name"))["data"][..., 2]
+            room_mask = utils.read_image(dataset_dict.pop("room_mask_file_name"))
             room_mask = room_mask.astype("double")
             room_mask = transforms.apply_segmentation(room_mask)
             room_mask = torch.as_tensor(room_mask.astype("long"))
@@ -423,7 +431,7 @@ class Front3DTestDatasetMapper(Front3DDatasetMapper):
 
         dataset_dict["image"] = image
         if self.is_matterport:
-            dataset_dict["room_mask"] = (room_mask > 0) & (room_mask < 2**32 - 1)
+            dataset_dict["room_mask"] = room_mask > 0
 
         geometry_content = np.load(dataset_dict.pop("geometry_file_name"))
         geometry = geometry_content["data"]
@@ -453,9 +461,12 @@ class Front3DTestDatasetMapper(Front3DDatasetMapper):
             dataset_dict["frustum_mask"] = self.metadata.frustum_mask
             dataset_dict["intrinsic"] = self.metadata.intrinsic
 
+        downsample_factor = 2 if self.is_matterport else 1
         instance_information_gt = prepare_instance_masks_thicken(instances_gt, instance_semantic_classes_gt,
-                                                                 geometry, dataset_dict["frustum_mask"], iso_value=iso_value)
+                                                                 geometry, dataset_dict["frustum_mask"], 
+                                                                 iso_value=iso_value, downsample_factor=downsample_factor)
         
         dataset_dict["instance_info_gt"] = instance_information_gt
+        dataset_dict["downsample_factor"] = downsample_factor
         
         return dataset_dict

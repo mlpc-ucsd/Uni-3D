@@ -147,9 +147,9 @@ def _eval(element, loader, eval_frames, void_class_id):
 class _EvalLoader:
     NUM_FRAMES = 0
 
-    def __init__(self, pred_dir, gt_dir, depth_thres):
+    def __init__(self, pred_dir, metadata, depth_thres):
         self.pred_dir = pred_dir
-        self.gt_dir = gt_dir
+        self.metadata = metadata
         self.depth_thres = depth_thres
 
     def prepare(self):
@@ -157,66 +157,6 @@ class _EvalLoader:
     
     def load(self, preds, gts, depth_preds, depth_gts):
         raise NotImplementedError
-
-
-class CityscapesLoader(_EvalLoader):
-    NUM_FRAMES = 6
-    NUM_CLASSES = 19
-
-    def prepare(self):
-        def load_sequence(inp_lst):
-            out_dict = dict()
-            for inp in inp_lst:
-                seq_id = inp.split('_')[0]
-                if seq_id not in out_dict:
-                    out_dict[seq_id] = []
-                out_dict[seq_id].append(inp)
-            for seq_id in out_dict:
-                out_dict[seq_id] = sorted(out_dict[seq_id])
-            return out_dict
-
-        # Load vps prediction
-        pred_names = os.scandir(self.pred_dir)
-        pred_names = [name.name for name in pred_names if 'panoptic.png' in name.name]
-        preds = load_sequence(pred_names)
-
-        # Load vps groundtruth
-        gt_names = os.scandir(self.gt_dir)
-        gt_names = [name.name for name in gt_names if 'gtFine' in name.name]
-        gts = load_sequence(gt_names)
-
-        depth_preds = {}
-        depth_gts = {}
-        if self.depth_thres > 0:
-            # Load depth prediction
-            depth_pred_names = os.scandir(self.pred_dir)
-            depth_pred_names = [
-                name.name for name in depth_pred_names if 'depth.png' in name.name]
-            depth_preds = load_sequence(depth_pred_names)
-
-            # Load depth groundtruth
-            depth_gt_names = os.scandir(self.gt_dir)
-            depth_gt_names = [
-                name.name for name in depth_gt_names if 'depth.png' in name.name]
-            depth_gts = load_sequence(depth_gt_names)
-
-        return preds, gts, depth_preds, depth_gts
-    
-    def load(self, preds, gts, depth_preds, depth_gts):
-        preds = [np.array(Image.open(os.path.join(self.pred_dir, pred))) for pred in preds]
-        cats = [pred[:, :, 0] for pred in preds]
-        inds = [pred[:, :, 1] for pred in preds]
-        preds = [cat.astype(np.uint32) * MAX_INS + ind.astype(np.uint32) for cat, ind in zip(cats, inds)]
-        gts = [np.array(Image.open(os.path.join(self.gt_dir, name))) for name in gts if '_instanceTrainIds.png' in name]
-
-        if self.depth_thres > 0:
-            depth_preds = [np.array(Image.open(os.path.join(self.pred_dir, name))) for name in depth_preds]
-            depth_gts = [np.array(Image.open(os.path.join(self.gt_dir, name))) for name in depth_gts]
-        else:
-            depth_preds = None
-            depth_gts = None    
-
-        return preds, gts, depth_preds, depth_gts  
     
 
 class Front3DLoader(_EvalLoader):
@@ -225,7 +165,7 @@ class Front3DLoader(_EvalLoader):
     IS_MATTERPORT = False
 
     def prepare(self):
-        with open(self.gt_dir) as fp:
+        with open(self.metadata.gt_dir) as fp:
             gt_json = json.load(fp)
 
         preds = {}
@@ -247,7 +187,7 @@ class Front3DLoader(_EvalLoader):
         return preds, gts, depth_preds, depth_gts
 
     def load(self, _preds, _gts, _depth_preds, _depth_gts):
-        gt_dir = os.path.dirname(self.gt_dir)
+        gt_dir = self.metadata.image_root
         preds = []
         gts = []
         depth_preds = []
@@ -260,7 +200,7 @@ class Front3DLoader(_EvalLoader):
             
             if self.IS_MATTERPORT:
                 name, angle, rot = image_id.split("_")
-                gt_segm_file = os.path.join(gt_dir, scene_id, f"{name}_segmap{angle}_{rot}.mapped.npz")
+                gt_segm_file = os.path.join(gt_dir, "data", scene_id, f"{name}_segmap{angle}_{rot}.mapped.npz")
             else:
                 gt_segm_file = os.path.join(gt_dir, scene_id, f"segmap_{image_id}.mapped.npz")
             
@@ -277,9 +217,13 @@ class Front3DLoader(_EvalLoader):
             if self.depth_thres > 0:
                 depth_preds.append(np.array(Image.open(os.path.join(self.pred_dir, scene_id, image_id + '_depth.png'))))
                 if self.IS_MATTERPORT:
-                    depth_gt = np.array(Image.open(os.path.join(gt_dir, scene_id, f"{name}_d{angle}_{rot}.png"))) / 4000. * 256
+                    depth_gt = np.array(Image.open(os.path.join(gt_dir, "depth_gen", scene_id, f"{name}_d{angle}_{rot}.png"))) / 4000
+                    # HACK: mask out-of-range values as in training
+                    depth_gt[depth_gt < 0.4] = 0
+                    depth_gt[depth_gt > 6.0] = 0
+                    depth_gt = depth_gt * 256
                 else:
-                    depth_gt = pyexr.read(os.path.join(gt_dir, scene_id, f"depth_{image_id}.exr")).squeeze().copy()*256
+                    depth_gt = pyexr.read(os.path.join(gt_dir, scene_id, f"depth_{image_id}.exr")).squeeze().copy() * 256
                 depth_gts.append(depth_gt.astype(np.int32))
         
         return preds, gts, depth_preds, depth_gts

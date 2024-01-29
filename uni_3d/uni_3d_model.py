@@ -209,6 +209,7 @@ class Uni3D(MaskFormer):
                 panoptic_seg, panoptic_semantic_mapping, semantic_seg = self.panoptic_3d_inference(
                     geometry_result, mask_cls_result, (coords, mask_3d, mask_3d_results.tensor_stride), min_coordinates, dense_dimensions,
                 )
+                downsample_factor = batched_inputs[idx]["downsample_factor"]
                 processed_results_3d.append({
                     "intrinsic": processed_results[idx]["intrinsic"],
                     "image_size": processed_results[idx]["image_size"],
@@ -222,7 +223,8 @@ class Uni3D(MaskFormer):
                                                                          panoptic_semantic_mapping, 
                                                                          geometry_result, 
                                                                          frustum_mask[idx],
-                                                                         iso_value=self.iso_value)
+                                                                         iso_value=self.iso_value,
+                                                                         downsample_factor=downsample_factor)
                 })
 
             return processed_results_3d

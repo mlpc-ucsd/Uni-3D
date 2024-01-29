@@ -24,7 +24,7 @@ class SparseProjection(nn.Module):
         self.depth_min = depth_min
         self.depth_max = depth_max
         self.voxel_size = voxel_size
-        self.register_buffer("frustum_dimensions", torch.tensor([frustum_dims, frustum_dims, frustum_dims]))
+        self.register_buffer("frustum_dimensions", torch.tensor([frustum_dims, frustum_dims, frustum_dims]), persistent=False)
 
     @classmethod
     def from_config(cls, cfg):

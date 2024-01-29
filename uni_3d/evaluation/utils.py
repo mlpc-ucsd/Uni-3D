@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 def _thicken_grid(grid, grid_dims, frustum_mask):
     device = frustum_mask.device
@@ -18,7 +19,17 @@ def _thicken_grid(grid, grid_dims, frustum_mask):
     return thicken
 
 
-def prepare_instance_masks_thicken(instances, semantic_mapping, distance_field, frustum_mask, iso_value=1.0, truncation=3.0):
+def prepare_instance_masks_thicken(instances, semantic_mapping, distance_field, frustum_mask, 
+                                   iso_value=1.0, truncation=3.0, downsample_factor: int=1):
+    assert isinstance(downsample_factor, int) and 256 % downsample_factor == 0
+    grid_dims = [256, 256, 256]
+    need_rescale = downsample_factor != 1
+    if need_rescale:
+        grid_dims = (torch.as_tensor(grid_dims) // downsample_factor).tolist()
+        iso_value = iso_value * downsample_factor
+        frustum_mask = F.interpolate(frustum_mask[None, None].float(), 
+                                     size=grid_dims, mode="nearest").squeeze(0, 1).bool()
+
     instance_information = {}
 
     for instance_id, semantic_class in semantic_mapping.items():
@@ -27,8 +38,12 @@ def prepare_instance_masks_thicken(instances, semantic_mapping, distance_field, 
         instance_distance_field[instance_mask] = distance_field.squeeze()[instance_mask]
         instance_distance_field_masked = instance_distance_field.abs() < iso_value
 
+        if need_rescale:
+            instance_distance_field_masked = F.max_pool3d(instance_distance_field_masked[None, None].float(), 
+                                                          kernel_size=downsample_factor+1, stride=downsample_factor, padding=1).squeeze(0, 1).bool()
+
         # instance_grid = instance_grid & frustum_mask
-        instance_grid = _thicken_grid(instance_distance_field_masked, [256, 256, 256], frustum_mask)
+        instance_grid = _thicken_grid(instance_distance_field_masked, grid_dims, frustum_mask)
         instance_grid: torch.Tensor = instance_grid.to(torch.device("cpu"), non_blocking=True)
         instance_information[instance_id] = instance_grid, semantic_class
 

@@ -55,6 +55,7 @@ class CityscapesDPSDatasetMapper(MaskFormerSemanticDatasetMapper):
         )
         self.depth_bound = depth_bound
         self.dataset_name = dataset_name
+        self.min_instance_pixels = config.MODEL.MASK_FORMER.MIN_INSTANCE_PIXELS
         self.config = config
 
     @classmethod

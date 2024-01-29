@@ -160,7 +160,7 @@ class FrustumDecoder(nn.Module):
             Me.MinkowskiConvolution(num_output_features, 1, kernel_size=3, bias=True, dimension=3),
         )
 
-        self.register_buffer("frustum_dimensions", torch.tensor(frustum_dims))
+        self.register_buffer("frustum_dimensions", torch.tensor(frustum_dims), persistent=False)
 
     @staticmethod
     def forward_sparse_segm(segm_features, queries):
