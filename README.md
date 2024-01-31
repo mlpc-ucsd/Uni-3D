@@ -66,17 +66,17 @@ export DOCKER_PREFIX="docker run -it --gpus all --shm-size 128G -v "$(pwd)":/wor
 
 #### Training 2D (Panoptic Segmentation/Depth) Model
 ```bash
-$DOCKER_PREFIX python train_net.py --config-file configs/front3d/mask2former_R50_bs16_160k.yaml --num-gpus 8 OUTPUT_DIR <path-to-output-dir>
+$DOCKER_PREFIX OMP_NUM_THREADS=16 torchrun --nproc_per_node=8 train_net.py --config-file configs/front3d/mask2former_R50_bs16_160k.yaml OUTPUT_DIR <path-to-output-dir>
 ```
 
 #### Training 3D Reconstruction Model
 ```bash
-$DOCKER_PREFIX python train_net.py --config-file configs/front3d/uni_3d_R50.yaml --num-gpus 8 MODEL.WEIGHTS <path-to-pretrained-2d-model> OUTPUT_DIR <path-to-output-dir>
+$DOCKER_PREFIX OMP_NUM_THREADS=16 torchrun --nproc_per_node=8 train_net.py --config-file configs/front3d/uni_3d_R50.yaml MODEL.WEIGHTS <path-to-pretrained-2d-model> OUTPUT_DIR <path-to-output-dir>
 ```
 
 Use [uni_3d_R50_ms.yaml](configs/front3d/uni_3d_R50_ms.yaml) for multi-scale feature reprojection.
 
-Please adjust `--num-gpus` and `SOLVER.IMS_PER_BATCH` based on your environment.
+Please adjust `--nproc_per_node`, `OMP_NUM_THREADS` and `SOLVER.IMS_PER_BATCH` based on your environment.
 
 #### Evaluate
 

@@ -2,17 +2,16 @@ from typing import Any, Dict, List, Set
 import copy
 import itertools
 import os
+import argparse
 import torch
-
+import torch.distributed as dist
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog, build_detection_train_loader, build_detection_test_loader
 from detectron2.engine import (
     DefaultTrainer,
-    default_argument_parser,
     default_setup,
-    launch,
 )
 from detectron2.evaluation import DatasetEvaluators, verify_results
 from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
@@ -217,13 +216,34 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = default_argument_parser().parse_args()
-    print("Command Line Args:", args)
-    launch(
-        main,
-        args.num_gpus,
-        num_machines=args.num_machines,
-        machine_rank=args.machine_rank,
-        dist_url=args.dist_url,
-        args=(args,),
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Whether to attempt to resume from the checkpoint directory. "
+        "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
     )
+    parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
+    parser.add_argument(
+        "opts",
+        help="""
+Modify config options at the end of the command. For Yacs configs, use
+space-separated "PATH.KEY VALUE" pairs.
+For python-based LazyConfig, use "path.key=value".
+        """.strip(),
+        default=None,
+        nargs=argparse.REMAINDER,
+    )
+    args = parser.parse_args()
+    print("Command Line Args:", args)
+    
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+    if world_size > 1:
+        dist.init_process_group()
+        comm.create_local_process_group(int(os.environ["LOCAL_WORLD_SIZE"]))
+
+        if torch.cuda.is_available():
+            torch.cuda.set_device(comm.get_local_rank())
+    comm.synchronize()
+    main(args)
