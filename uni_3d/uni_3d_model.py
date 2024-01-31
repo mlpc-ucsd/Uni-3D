@@ -166,18 +166,14 @@ class Uni3D(MaskFormer):
         frustum_mask = torch.stack([x["frustum_mask"] for x in batched_inputs]).to(self.device)
         frustum_mask_64 = F.max_pool3d(frustum_mask[:, None].float(), kernel_size=2, stride=4).bool()
 
-        try:
-            outputs_3d = self.completion(sparse_multi_scale_features, sparse_encoder_features, segm_queries, frustum_mask_64)
-        except MemoryError:
-            # clear cache and retry
-            torch.cuda.empty_cache()
-            outputs_3d = self.completion(sparse_multi_scale_features, sparse_encoder_features, segm_queries, frustum_mask_64)
+        torch.cuda.empty_cache()
+        outputs_3d = self.completion(sparse_multi_scale_features, sparse_encoder_features, segm_queries, frustum_mask_64)
 
-        # Copy over 2D results for matching
-        outputs_3d["pred_logits"] = outputs["pred_logits"]
-        outputs_3d["pred_masks"] = outputs["pred_masks"]
+        if self.training:            
+            # Copy over 2D results for matching
+            outputs_3d["pred_logits"] = outputs["pred_logits"]
+            outputs_3d["pred_masks"] = outputs["pred_masks"]
 
-        if self.training:
             if "instances" in batched_inputs[0]:
                 targets = self.prepare_targets(batched_inputs, images)
             else:

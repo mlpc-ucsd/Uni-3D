@@ -8,27 +8,30 @@ from .resnet import BasicBlock3D, SparseBasicBlock3D
 
 def sparse_cat_union(a: Me.SparseTensor, b: Me.SparseTensor):
     cm = a.coordinate_manager
+    stride = a.tensor_stride
+    dtype = a.dtype
     assert cm == b.coordinate_manager, "different coords_man"
     assert a.tensor_stride == b.tensor_stride, "different tensor_stride"
 
-    zeros_cat_with_a = torch.zeros([a.F.shape[0], b.F.shape[1]], dtype=a.dtype).to(a.device)
-    zeros_cat_with_b = torch.zeros([b.F.shape[0], a.F.shape[1]], dtype=a.dtype).to(a.device)
+    device = a.device
+    zeros_cat_with_a = torch.zeros([a.F.shape[0], b.F.shape[1]], dtype=dtype, device=device)
+    zeros_cat_with_b = torch.zeros([b.F.shape[0], a.F.shape[1]], dtype=dtype, device=device)
 
     feats_a = torch.cat([a.F, zeros_cat_with_a], dim=1)
     feats_b = torch.cat([zeros_cat_with_b, b.F], dim=1)
 
     new_a = Me.SparseTensor(
         features=feats_a,
-        coordinates=a.C,
+        coordinate_map_key=a.coordinate_key,
         coordinate_manager=cm,
-        tensor_stride=a.tensor_stride,
+        tensor_stride=stride,
     )
 
     new_b = Me.SparseTensor(
         features=feats_b,
-        coordinates=b.C,
+        coordinate_map_key=b.coordinate_key,
         coordinate_manager=cm,
-        tensor_stride=a.tensor_stride,
+        tensor_stride=stride,
     )
 
     return new_a + new_b
@@ -248,7 +251,7 @@ class FrustumDecoder(nn.Module):
                 if isinstance(encoded, torch.Tensor):
                     encoded = encoded + feat
                 else:
-                    feat = Me.SparseTensor(feat.F, 
+                    feat = Me.SparseTensor(feat.F,
                                            coordinates=feat.C,
                                            tensor_stride=feat.tensor_stride,
                                            coordinate_manager=encoded.coordinate_manager)
