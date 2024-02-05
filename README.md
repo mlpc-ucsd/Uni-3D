@@ -43,19 +43,43 @@ Please download [3D-FRONT](https://tianchi.aliyun.com/specials/promotion/alibaba
 unzip front3d.zip -d datasets/front3d/data
 ```
 
-
 #### Matterport3D
 
-Coming soon
+Please request the dataset from the authors of [Pano-Re](https://github.com/xheon/panoptic-reconstruction). Extract it under `datasets/matterport/data`. 
+
+Also download the room mask and depth from [BUOL](https://github.com/chtsy/buol). Extract them under`dataset/matterport/room_mask` and `dataset/matterport/depth_gen`, respectively.
+
+##### Folder Structure
+```
+matterport/
+    meta/
+        train_3d.json                                         # Training set metadata
+        ...
+    data/
+        <scene_id>/            
+            ├── <image_id>_i<frame_id>.png                    # Color image: 320x240x3
+            ├── <image_id>_segmap<frame_id>.mapped.npz        # 2D Segmentation: 320x240x2, with 0: pre-mapped semantics, 1: instances
+            ├── <image_id>_intrinsics_<camera_id>.png         # Intrinsics matrix: 4x4
+            ├── <image_id>_geometry<frame_id>.npz             # 3D Geometry: 256x256x256x1, truncated, (unsigned) distance field at 3cm voxel resolution and 12 voxel truncation.
+            ├── <image_id>_segmentation<frame_id>.mapped.npz  # 3D Segmentation: 256x256x256x2, with 0: pre-mapped semantics & instances
+            ├── <image_id>_weighting<frame_id>.npz            # 3D Weighting mask: 256x256x256x1
+    depth_gen/
+        <scene_id>/     
+            ├── <posithion_id>_d<frame_id>.png                # Depth image: 320x240x1
+    room_mask/
+        <scene_id>/   
+            ├── <posithion_id>_rm<frame_id>.png               # Room mask: 320x240x1
+```
 
 ### Pre-trained Weights
 
-| Model                  | PRQ  | RSQ  | RRQ  | Download |
-| ---------------------- | :--: | :--: | :--: | -------- |
-| 3D-FRONT Pretrained 2D |  --  |  --  |  --  | [front3d_dps_160k.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EboqJU7ZZ2FCiWxKKd_9BMgB2AGUxGO8DbGlo7r95GCAoA?e=s6Ok8e) |
-| 3D-FRONT Single-scale  | 52.51 | 60.89 | 83.97 | [front3d_full_single_scale.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EeElQbNMin9IohabPpGrMFUBmpDpeozXfpgy1Fj2h1ZS6w?e=AzaruR) |
-| 3D-FRONT Multi-scale   | 53.53 | 61.69 | 84.69 | [front3d_full_multi_scale.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EcnDpfw1ZdJOgf-sNRHRtZ4B-OvwMH-ldS-h3_I5KlW2ag?e=vufGhW) |
-
+| Model                    | PRQ  | RSQ  | RRQ  | Download |
+| ------------------------ | :--: | :--: | :--: | -------- |
+| 3D-FRONT Pretrained 2D   |  --  |  --  |  --  | [front3d_dps_160k.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EboqJU7ZZ2FCiWxKKd_9BMgB2AGUxGO8DbGlo7r95GCAoA?e=s6Ok8e) |
+| 3D-FRONT Single-scale    | 52.51 | 60.89 | 83.97 | [front3d_full_single_scale.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EeElQbNMin9IohabPpGrMFUBmpDpeozXfpgy1Fj2h1ZS6w?e=AzaruR) |
+| 3D-FRONT Multi-scale     | 53.53 | 61.69 | 84.69 | [front3d_full_multi_scale.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EcnDpfw1ZdJOgf-sNRHRtZ4B-OvwMH-ldS-h3_I5KlW2ag?e=vufGhW) |
+| Matterport Pretrained 2D |  --  |  --  |  --  | [matterport_dps_120k.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/EZtb_q9PgWhIl1Q6nSuV0bYBIVJUWnzMXh79002ZjEpwJA?e=hJMBVv) |
+| Matterport Single-scale  | 16.58 | 44.26 | 36.68 | [matterport_full_single_scale.pth](https://ucsdcloud-my.sharepoint.com/:u:/g/personal/xiz102_ucsd_edu/ESZ7udkc4RxCkQcyLcZ3-08BjDDxkRHo6LRRoFqRnR_A3g?e=P88gGp) |
 
 ### Run
 
@@ -112,4 +136,5 @@ This repository is released under the Apache License 2.0. License can be found i
 ## Acknowledgement
 
 - [Mask2Former](https://github.com/facebookresearch/Mask2Former) for the framework.
-- [panoptic-reconstruction](https://github.com/xheon/panoptic-reconstruction) for the pre-processed 3D-FRONT dataset and evaluation codes.
+- [panoptic-reconstruction](https://github.com/xheon/panoptic-reconstruction) for the pre-processed 3D-FRONT and Matterport dataset, and evaluation codes.
+- [BUOL](https://github.com/chtsy/buol) for generated depth and room mask on Matterport dataset.

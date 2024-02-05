@@ -69,6 +69,11 @@ class Trainer(DefaultTrainer):
         elif len(evaluator_list) == 1:
             return evaluator_list[0]
         return DatasetEvaluators(evaluator_list)
+    
+    def before_step(self):
+        super().before_step()
+        if self.cfg.GLOBAL.EMPTY_CACHE_BEFORE_STEP:
+            torch.cuda.empty_cache()
 
     @classmethod
     def build_train_loader(cls, cfg):

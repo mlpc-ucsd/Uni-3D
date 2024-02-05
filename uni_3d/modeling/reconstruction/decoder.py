@@ -14,11 +14,9 @@ def sparse_cat_union(a: Me.SparseTensor, b: Me.SparseTensor):
     assert a.tensor_stride == b.tensor_stride, "different tensor_stride"
 
     device = a.device
-    zeros_cat_with_a = torch.zeros([a.F.shape[0], b.F.shape[1]], dtype=dtype, device=device)
-    zeros_cat_with_b = torch.zeros([b.F.shape[0], a.F.shape[1]], dtype=dtype, device=device)
 
-    feats_a = torch.cat([a.F, zeros_cat_with_a], dim=1)
-    feats_b = torch.cat([zeros_cat_with_b, b.F], dim=1)
+    feats_a = F.pad(a.F, (0, b.F.shape[1]))
+    feats_b = F.pad(b.F, (a.F.shape[1], 0))
 
     new_a = Me.SparseTensor(
         features=feats_a,

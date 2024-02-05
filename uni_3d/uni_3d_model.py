@@ -166,7 +166,6 @@ class Uni3D(MaskFormer):
         frustum_mask = torch.stack([x["frustum_mask"] for x in batched_inputs]).to(self.device)
         frustum_mask_64 = F.max_pool3d(frustum_mask[:, None].float(), kernel_size=2, stride=4).bool()
 
-        torch.cuda.empty_cache()
         outputs_3d = self.completion(sparse_multi_scale_features, sparse_encoder_features, segm_queries, frustum_mask_64)
 
         if self.training:            

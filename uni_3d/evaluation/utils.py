@@ -26,7 +26,6 @@ def prepare_instance_masks_thicken(instances, semantic_mapping, distance_field, 
     need_rescale = downsample_factor != 1
     if need_rescale:
         grid_dims = (torch.as_tensor(grid_dims) // downsample_factor).tolist()
-        iso_value = iso_value * downsample_factor
         frustum_mask = F.interpolate(frustum_mask[None, None].float(), 
                                      size=grid_dims, mode="nearest").squeeze(0, 1).bool()
 
