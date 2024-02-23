@@ -20,6 +20,7 @@ FRONT3D_CATEGORIES = [
     {"color": (190, 50, 60), "isthing": 1, "id": 9, "trainId": 9, "name": "other"},
     {"color": (102, 102, 156), "isthing": 0, "id": 10, "trainId": 10, "name": "wall"},
     {"color": (128, 64, 128), "isthing": 0, "id": 11, "trainId": 11, "name": "floor"},
+    {"color": (70, 70, 70), "isthing": 0, "id": 12, "trainId": 12, "name": "ceiling"}, # unused placeholder
 ]
 
 FRONT3D_INTRINSIC = np.array([[277.1281435,   0.       , 159.5,  0.],
